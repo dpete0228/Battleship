@@ -74,15 +74,11 @@ class BattleshipSetup(arcade.Window):
                     self.selected_ship = ship
                     self.anchor = ship[0]
 
-                    if self.horizontal:
-                        ship_left_edge = min(p.center_x - p.width / 2 for p in ship)
-                        self.drag_offset_x = ship_left_edge - x
-                        self.drag_offset_y = self.anchor.center_y - y
-                    else:
-                        ship_top_edge = max(p.center_y + p.height / 2 for p in ship)
-                        self.drag_offset_x = self.anchor.center_x - x
-                        self.drag_offset_y = ship_top_edge - y
+                    # Offset between mouse position and part center
+                    self.drag_offset_x = part.center_x - x
+                    self.drag_offset_y = part.center_y - y
                     return
+
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         if not self.selected_ship:
@@ -94,53 +90,89 @@ class BattleshipSetup(arcade.Window):
             for i, part in enumerate(self.selected_ship):
                 part.center_x = start_x + i * SQUARE_SIZE
                 part.center_y = start_y
+                if i == 0:
+                    part.angle = 0
+                elif i == len(self.selected_ship) - 1:
+                    part.angle = 180
+                else:
+                    part.angle = 0
         else:
             start_x = x + self.drag_offset_x
-            start_y = y + self.drag_offset_y - self.selected_ship[0].height / 2
+            start_y = y + self.drag_offset_y + self.selected_ship[0].height / 2  # Adjusted here
             for i, part in enumerate(self.selected_ship):
                 part.center_x = start_x
-                part.center_y = start_y - i * SQUARE_SIZE
+                part.center_y = start_y + i * SQUARE_SIZE  # Grow downward: increasing y
+                if i == 0:
+                    part.angle = 270
+                elif i == len(self.selected_ship) - 1:
+                    part.angle = 90
+                else:
+                    part.angle = 90
+
+
 
     def on_mouse_release(self, x, y, button, modifiers):
         if not self.selected_ship:
             return
 
+        # Use top part (index 0) as anchor for vertical
         if self.horizontal:
-            left_edge = min(p.center_x - p.width / 2 for p in self.selected_ship)
-            col = round((left_edge - self.grid_x_offset) / SQUARE_SIZE)
-            row = round((self.selected_ship[0].center_y - self.grid_y_offset) / SQUARE_SIZE)
+            anchor = self.selected_ship[0]  # left end for horizontal
         else:
-            top_edge = max(p.center_y + p.height / 2 for p in self.selected_ship)
-            col = round((self.selected_ship[0].center_x - self.grid_x_offset) / SQUARE_SIZE)
-            row = round((top_edge - self.grid_y_offset) / SQUARE_SIZE)
+            anchor = self.selected_ship[0]  # top end for vertical
 
+        # Find nearest grid cell for anchor (rounded)
+        col = round((anchor.center_x - self.grid_x_offset) / SQUARE_SIZE - 0.5)
+        row = round((anchor.center_y - self.grid_y_offset) / SQUARE_SIZE - 0.5)
+
+        # Clamp to board boundaries
         col = max(0, min(9, col))
         row = max(0, min(9, row))
 
+        # Compute starting center for anchor
         start_x = self.grid_x_offset + col * SQUARE_SIZE + SQUARE_SIZE / 2
         start_y = self.grid_y_offset + row * SQUARE_SIZE + SQUARE_SIZE / 2
 
         for i, part in enumerate(self.selected_ship):
             if self.horizontal:
-                part.center_x = start_x + i * SQUARE_SIZE
-                part.center_y = start_y
+                part.center_x = round(start_x + i * SQUARE_SIZE)
+                part.center_y = round(start_y)
+                if i == 0:
+                    part.angle = 0
+                elif i == len(self.selected_ship) - 1:
+                    part.angle = 180
+                else:
+                    part.angle = 0
             else:
-                part.center_x = start_x
-                part.center_y = start_y - i * SQUARE_SIZE
+                # Grow downward: increase y by i * SQUARE_SIZE
+                part.center_x = round(start_x)
+                part.center_y = round(start_y + i * SQUARE_SIZE)
+                if i == 0:
+                    part.angle = 270
+                elif i == len(self.selected_ship) - 1:
+                    part.angle = 90
+                else:
+                    part.angle = 90
 
         self.selected_ship = None
+
+
+
+
+
+
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.SPACE and self.selected_ship:
             self.horizontal = not self.horizontal
-            anchor_x = self.anchor.center_x
-            anchor_y = self.anchor.center_y
+            anchor_x = round(self.anchor.center_x)
+            anchor_y = round(self.anchor.center_y)
 
             for i, part in enumerate(self.selected_ship):
                 if i == 0:
-                    part.angle = 0 if self.horizontal else 90
+                    part.angle = 0 if self.horizontal else 270
                 elif i == len(self.selected_ship) - 1:
-                    part.angle = 180 if self.horizontal else 270
+                    part.angle = 180 if self.horizontal else 90
                 else:
                     part.angle = 0 if self.horizontal else 90
 
@@ -149,7 +181,8 @@ class BattleshipSetup(arcade.Window):
                     part.center_y = anchor_y
                 else:
                     part.center_x = anchor_x
-                    part.center_y = anchor_y - i * SQUARE_SIZE
+                    part.center_y = anchor_y + i * SQUARE_SIZE
+
 
 
 def main():
